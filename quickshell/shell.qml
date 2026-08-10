@@ -1,3 +1,5 @@
+//@ pragma UseQApplication
+
 import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Io
@@ -191,7 +193,7 @@ ShellRoot {
 
             anchors { top: true; left: true; right: true }
             exclusiveZone: 30
-            height: 30
+            implicitHeight: 30
             color: colBg
 
             RowLayout {
@@ -256,6 +258,7 @@ ShellRoot {
                         model: SystemTray.items
 
                         Item {
+                            id: trayItem
                             width: 28
                             height: bar.height
 
@@ -279,10 +282,13 @@ ShellRoot {
                                 acceptedButtons: Qt.LeftButton | Qt.RightButton
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: mouse => {
-                                    if (mouse.button === Qt.RightButton && modelData.hasMenu)
-                                        modelData.display(trayItem, mouse.x, mouse.y)
-                                    else
+                                    if (mouse.button === Qt.RightButton && modelData.hasMenu) {
+                                        var pos = trayItem.mapToItem(bar.contentItem, mouse.x, mouse.y)
+                                        console.log("tray menu:", modelData.title || modelData.id, "pos:", pos.x, pos.y)
+                                        modelData.display(bar, pos.x, pos.y)
+                                    } else {
                                         modelData.activate()
+                                    }
                                 }
                             }
                         }
