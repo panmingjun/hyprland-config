@@ -1,0 +1,27 @@
+[global]
+    width = (380, 460)
+    height = (0, 220)
+    origin = top-right
+    offset = (12, 12)
+    padding = 14
+    horizontal_padding = 14
+    corner_radius = 12
+    frame_width = 0
+    gap_size = 8
+    font = JetBrainsMono Nerd Font 10
+
+[urgency_low]
+    background = "#1E1E2EDD"
+    foreground = "#9399B2"
+    timeout = 4000
+
+[urgency_normal]
+    background = "#1E1E2EDD"
+    foreground = "#CDD6F4"
+    timeout = 8000
+
+[urgency_critical]
+    background = "#45151CDD"
+    foreground = "#F38BA8"
+    frame_color = "#F38BA8"
+    timeout = 0
