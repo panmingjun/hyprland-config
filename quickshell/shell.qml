@@ -17,7 +17,7 @@ ShellRoot {
     property color colMuted:    "#444b6a"
     property color colActive:   "#7aa2f7"
     property color colUrgent:   "#f7768e"
-    property color colHasWin:   "#a9b1d6"
+    property color colHasWin:   "#6f8fe0"
     property color colEmpty:    "#444b6a"
     property color colYellow:   "#e0af68"
     property color colCyan:     "#0db9d7"
@@ -235,7 +235,7 @@ ShellRoot {
                         property var ws: Hyprland.workspaces.values.find(
                             w => w.id === index + 1) ?? null
                         property bool isActive: Hyprland.focusedWorkspace?.id === (index + 1)
-                        property bool hasWindows: ws !== null && ws.toplevels.length > 0
+                        property bool hasWindows: ws !== null && ws.toplevels.values.length > 0
                         property bool isUrgent: ws?.urgent ?? false
 
                         Text {
