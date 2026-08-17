@@ -51,6 +51,9 @@ ShellRoot {
     // DeepSeek 余额/用量
     property string dsText: "DS 未配置deepseek密钥"
 
+    // 节假日数据 (date -> "off" | "work")
+    property var holidayMap: ({})
+
     // 刷新电量
     function refreshBattery() {
         var dev = UPower?.displayDevice
@@ -183,6 +186,25 @@ ShellRoot {
                 if (data) dsText = data.trim()
             }
         }
+    }
+
+    // 节假日数据查询（按年份）
+    Process {
+        id: holidayProc
+        stdout: SplitParser {
+            onRead: data => {
+                try {
+                    holidayMap = JSON.parse(data.trim())
+                } catch (e) {
+                    holidayMap = ({})
+                }
+            }
+        }
+    }
+
+    function refreshHoliday(year) {
+        holidayProc.command = ["python3", "/home/panmingjun/.config/hypr/quickshell/holiday.py", String(year)]
+        holidayProc.running = true
     }
 
     Timer {
@@ -454,9 +476,9 @@ ShellRoot {
                     color: colMuted
                 }
 
-                // 时钟：日期 + 周几 + 时间
+                // 时钟：日期 + 周几 + 时间（hover 展开日历）
                 Text {
-                    id: clock
+                    id: clockText
                     property var currentDate: new Date()
                     property var weeks: ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"]
                     text: currentDate.getFullYear() + "年"
@@ -474,7 +496,207 @@ ShellRoot {
                         running: true
                         repeat: true
                         onTriggered: {
-                            clock.currentDate = new Date()
+                            clockText.currentDate = new Date()
+                        }
+                    }
+
+                    MouseArea {
+                        id: clockArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onEntered: {
+                            calendarPopup.open()
+                        }
+                        onExited: {
+                            closeTimer.start()
+                        }
+                    }
+                }
+            }
+
+            // ===== 下拉日历 =====
+            PopupWindow {
+                id: calendarPopup
+                visible: false
+                grabFocus: false
+                anchor.window: bar
+                anchor.rect.x: bar.width - width - 12
+                anchor.rect.y: bar.height + 4
+                width: 268
+                height: 250
+                color: "transparent"
+
+                property var viewDate: clockText.currentDate
+                property int viewYear: viewDate.getFullYear()
+                property int viewMonth: viewDate.getMonth()
+
+                function open() {
+                    viewYear = clockText.currentDate.getFullYear()
+                    viewMonth = clockText.currentDate.getMonth()
+                    visible = true
+                    closeTimer.stop()
+                    refreshHoliday(viewYear)
+                }
+
+                function daysInMonth(y, m) { return new Date(y, m + 1, 0).getDate() }
+
+                function fmtDate(y, m, d) {
+                    return y + "-" + (m < 10 ? "0" : "") + m + "-" + (d < 10 ? "0" : "") + d
+                }
+
+                property var gridModel: {
+                    let first = new Date(viewYear, viewMonth, 1).getDay()
+                    let dim = daysInMonth(viewYear, viewMonth)
+                    let prevDim = daysInMonth(viewYear, viewMonth - 1)
+                    let today = clockText.currentDate
+                    let arr = []
+                    for (let i = 0; i < 42; i++) {
+                        let day = i - first + 1
+                        let inMonth = day >= 1 && day <= dim
+                        let cy = viewYear, cm = viewMonth, cd = day
+                        if (!inMonth) {
+                            if (day < 1) { cm = viewMonth - 1; cd = prevDim + day }
+                            else        { cm = viewMonth + 1; cd = day - dim }
+                            cy = cm < 0 ? viewYear - 1 : (cm > 11 ? viewYear + 1 : viewYear)
+                            cm = (cm + 12) % 12
+                        }
+                        let isToday = inMonth && cy === today.getFullYear()
+                            && cm === today.getMonth() && cd === today.getDate()
+                        let mark = holidayMap[fmtDate(cy, cm + 1, cd)] || ""
+                        arr.push({
+                            label: cd,
+                            inMonth: inMonth,
+                            isToday: isToday,
+                            mark: mark
+                        })
+                    }
+                    return arr
+                }
+
+                function goPrevMonth() {
+                    viewMonth--
+                    if (viewMonth < 0) { viewMonth = 11; viewYear-- }
+                    refreshHoliday(viewYear)
+                }
+
+                function goNextMonth() {
+                    viewMonth++
+                    if (viewMonth > 11) { viewMonth = 0; viewYear++ }
+                    refreshHoliday(viewYear)
+                }
+
+                Timer {
+                    id: closeTimer
+                    interval: 350
+                    onTriggered: calendarPopup.visible = false
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    onEntered: closeTimer.stop()
+                    onExited: closeTimer.start()
+                }
+
+                Rectangle {
+                    anchors.fill: parent
+                    color: colBg
+                    border.color: colMuted
+                    border.width: 1
+                    radius: 8
+
+                    Column {
+                        anchors.fill: parent
+                        anchors.topMargin: 6
+                        anchors.bottomMargin: 6
+                        spacing: 4
+
+                        // 导航栏
+                        Row {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            spacing: 8
+
+                            Item {
+                                width: 24; height: 24
+                                Text { text: "◀"; anchors.centerIn: parent; color: colFg
+                                    font.pixelSize: 11; font.family: fontName }
+                                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                    onClicked: calendarPopup.goPrevMonth() }
+                            }
+
+                            Text {
+                                text: calendarPopup.viewYear + "年" + (calendarPopup.viewMonth + 1) + "月"
+                                color: colFg
+                                font.pixelSize: fontSize
+                                font.family: fontName
+                                font.bold: true
+                                width: 90
+                                horizontalAlignment: Text.AlignHCenter
+                            }
+
+                            Item {
+                                width: 24; height: 24
+                                Text { text: "▶"; anchors.centerIn: parent; color: colFg
+                                    font.pixelSize: 11; font.family: fontName }
+                                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                    onClicked: calendarPopup.goNextMonth() }
+                            }
+                        }
+
+                        // 星期表头
+                        Row {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            Repeater {
+                                model: ["日", "一", "二", "三", "四", "五", "六"]
+                                Text {
+                                    width: 36; height: 20
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                    text: modelData
+                                    color: colMuted
+                                    font.pixelSize: fontSize - 2
+                                    font.family: fontName
+                                }
+                            }
+                        }
+
+                        // 日期网格
+                        Grid {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            columns: 7
+                            spacing: 1
+                            Repeater {
+                                model: calendarPopup.gridModel
+                                delegate: Rectangle {
+                                    width: 36; height: 26
+                                    radius: 13
+                                    color: modelData.isToday ? colActive : "transparent"
+
+                                    Column {
+                                        anchors.centerIn: parent
+                                        spacing: 0
+                                        Text {
+                                            anchors.horizontalCenter: parent.horizontalCenter
+                                            text: modelData.label
+                                            color: modelData.isToday ? colBg
+                                                 : modelData.inMonth ? colFg : colMuted
+                                            font.pixelSize: fontSize - 1
+                                            font.family: fontName
+                                            font.bold: modelData.isToday
+                                        }
+                                        Text {
+                                            anchors.horizontalCenter: parent.horizontalCenter
+                                            text: modelData.mark === "off" ? "假"
+                                                : modelData.mark === "work" ? "班" : ""
+                                            color: modelData.mark === "off" ? colGreen
+                                                 : modelData.mark === "work" ? colYellow : "transparent"
+                                            font.pixelSize: fontSize - 5
+                                            font.family: fontName
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
