@@ -48,6 +48,9 @@ ShellRoot {
     // 输入法
     property string imDisplayName: "EN"
 
+    // DeepSeek 余额/用量
+    property string dsText: "DS 未配置deepseek密钥"
+
     // 刷新电量
     function refreshBattery() {
         var dev = UPower?.displayDevice
@@ -171,12 +174,31 @@ ShellRoot {
         }
     }
 
+    // DeepSeek 余额/用量查询（每 60 秒刷新）
+    Process {
+        id: dsProc
+        command: ["python3", "/home/panmingjun/.config/hypr/quickshell/ds_usage.py"]
+        stdout: SplitParser {
+            onRead: data => {
+                if (data) dsText = data.trim()
+            }
+        }
+    }
+
+    Timer {
+        interval: 60000
+        running: true
+        repeat: true
+        onTriggered: dsProc.running = true
+    }
+
     // 启动时初始化
     Component.onCompleted: {
         refreshBattery()
         cpuProc.running = true
         memProc.running = true
         imProc.running = true
+        dsProc.running = true
         if (Pipewire.defaultAudioSink)
             audioSink = Pipewire.defaultAudioSink
     }
@@ -248,6 +270,21 @@ ShellRoot {
                 }
 
                 Item { Layout.fillWidth: true }
+
+                // DeepSeek 余额/用量（点击立即刷新）
+                Text {
+                    text: dsText
+                    color: dsText.indexOf("未配置") >= 0 || dsText.indexOf("失败") >= 0 ? colRed : colGreen
+                    font.pixelSize: fontSize
+                    font.family: fontName
+                    Layout.rightMargin: 8
+
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: dsProc.running = true
+                    }
+                }
 
                 // ----- 系统托盘 -----
                 Row {
