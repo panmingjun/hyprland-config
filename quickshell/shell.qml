@@ -180,7 +180,7 @@ ShellRoot {
     // DeepSeek 余额/用量查询（每 60 秒刷新）
     Process {
         id: dsProc
-        command: ["python3", "/home/panmingjun/.config/hypr/quickshell/ds_usage.py"]
+        command: ["python3", Quickshell.shellDir + "/ds_usage.py"]
         stdout: SplitParser {
             onRead: data => {
                 if (data) dsText = data.trim()
@@ -203,7 +203,7 @@ ShellRoot {
     }
 
     function refreshHoliday(year) {
-        holidayProc.command = ["python3", "/home/panmingjun/.config/hypr/quickshell/holiday.py", String(year)]
+        holidayProc.command = ["python3", Quickshell.shellDir + "/holiday.py", String(year)]
         holidayProc.running = true
     }
 
