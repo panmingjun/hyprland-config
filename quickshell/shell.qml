@@ -414,10 +414,16 @@ ShellRoot {
                     color: colMuted
                 }
 
-                // 时钟
+                // 时钟：日期 + 周几 + 时间
                 Text {
                     id: clock
-                    text: Qt.formatDateTime(new Date(), "HH:mm")
+                    property var currentDate: new Date()
+                    property var weeks: ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"]
+                    text: currentDate.getFullYear() + "年"
+                        + (currentDate.getMonth() + 1) + "月"
+                        + currentDate.getDate() + "日 "
+                        + weeks[currentDate.getDay()]
+                        + " " + Qt.formatTime(currentDate, "HH:mm")
                     color: colFg
                     font.pixelSize: fontSize
                     font.family: fontName
@@ -428,7 +434,7 @@ ShellRoot {
                         running: true
                         repeat: true
                         onTriggered: {
-                            clock.text = Qt.formatDateTime(new Date(), "HH:mm")
+                            clock.currentDate = new Date()
                         }
                     }
                 }
