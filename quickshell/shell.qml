@@ -282,7 +282,10 @@ ShellRoot {
                     MouseArea {
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: dsProc.running = true
+                        onClicked: {
+                            dsProc.running = true
+                            Qt.openUrlExternally("https://platform.deepseek.com/usage")
+                        }
                     }
                 }
 
