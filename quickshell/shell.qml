@@ -51,6 +51,30 @@ ShellRoot {
     // DeepSeek 余额/用量
     property string dsText: "DS 未配置deepseek密钥"
 
+    // 火山方舟 Coding Plan 用量
+    property string arkText: "Ark 加载中..."
+    property var arkDetail: []
+    property real arkMax: 0
+    property string arkError: ""
+
+    function arkPctAt(i) {
+        if (arkDetail && arkDetail[i]) return arkDetail[i].percent
+        return 0
+    }
+    function arkColorAt(i) {
+        if (arkError.length > 0) return colRed
+        var p = arkPctAt(i)
+        if (p >= 80) return colRed
+        if (p >= 50) return colYellow
+        return colGreen
+    }
+    function arkColor() {
+        if (arkError.length > 0) return colRed
+        if (arkMax >= 80) return colRed
+        if (arkMax >= 50) return colYellow
+        return colGreen
+    }
+
     // 节假日数据 (date -> "off" | "work")
     property var holidayMap: ({})
 
@@ -188,6 +212,29 @@ ShellRoot {
         }
     }
 
+    // 火山方舟 Coding Plan 用量查询（每 60 秒刷新）
+    Process {
+        id: arkProc
+        command: ["python3", Quickshell.shellDir + "/ark_usage.py"]
+        stdout: SplitParser {
+            onRead: data => {
+                if (!data) return
+                try {
+                    var obj = JSON.parse(data.trim())
+                    arkText = obj.text || "Ark --"
+                    arkDetail = obj.detail || []
+                    arkMax = obj.max || 0
+                    arkError = obj.error || ""
+                } catch (e) {
+                    arkText = "Ark 解析失败"
+                    arkDetail = []
+                    arkMax = 0
+                    arkError = "bad_json"
+                }
+            }
+        }
+    }
+
     // 节假日数据查询（按年份）
     Process {
         id: holidayProc
@@ -211,7 +258,10 @@ ShellRoot {
         interval: 60000
         running: true
         repeat: true
-        onTriggered: dsProc.running = true
+        onTriggered: {
+            dsProc.running = true
+            arkProc.running = true
+        }
     }
 
     // 启动时初始化
@@ -221,6 +271,7 @@ ShellRoot {
         memProc.running = true
         imProc.running = true
         dsProc.running = true
+        arkProc.running = true
         if (Pipewire.defaultAudioSink)
             audioSink = Pipewire.defaultAudioSink
     }
@@ -293,13 +344,59 @@ ShellRoot {
 
                 Item { Layout.fillWidth: true }
 
-                // DeepSeek 余额/用量（点击立即刷新）
+                // 火山方舟 Coding Plan 用量（在 DeepSeek 左边）
                 Text {
-                    text: dsText
-                    color: dsText.indexOf("未配置") >= 0 || dsText.indexOf("失败") >= 0 ? colRed : colGreen
+                    id: arkTextEl
+                    text: {
+                        if (arkError.length > 0)
+                            return '<font color="' + colRed + '">' + arkText + '</font>'
+                        var p0 = arkDetail[0] ? arkDetail[0].percent.toFixed(1) : "--"
+                        var p1 = arkDetail[1] ? arkDetail[1].percent.toFixed(1) : "--"
+                        var p2 = arkDetail[2] ? arkDetail[2].percent.toFixed(1) : "--"
+                        return '<font color="' + colCyan + '">Ark </font>'
+                             + '<font color="' + arkColor() + '">'
+                             + p0 + '% | ' + p1 + '% | ' + p2 + '%</font>'
+                    }
+                    textFormat: Text.StyledText
                     font.pixelSize: fontSize
                     font.family: fontName
                     Layout.rightMargin: 8
+                    Layout.alignment: Qt.AlignBaseline
+
+                    MouseArea {
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: arkProc.running = true
+                        onEntered: arkDetailPopup.open()
+                        onExited: arkCloseTimer.start()
+                    }
+                }
+
+                // Ark / DS 之间的分隔线
+                Rectangle {
+                    Layout.preferredWidth: 1
+                    Layout.preferredHeight: 16
+                    Layout.alignment: Qt.AlignVCenter
+                    Layout.rightMargin: 8
+                    color: colMuted
+                }
+
+                // DeepSeek 余额/用量（点击立即刷新）
+                Text {
+                    text: {
+                        if (dsText.indexOf("未配置") >= 0 || dsText.indexOf("失败") >= 0)
+                            return '<font color="' + colRed + '">' + dsText + '</font>'
+                        var m = dsText.match(/^DS\s+/)
+                        var rest = m ? dsText.slice(m[0].length) : dsText
+                        return '<font color="' + colCyan + '">DS </font>'
+                             + '<font color="' + colGreen + '">' + rest + '</font>'
+                    }
+                    textFormat: Text.StyledText
+                    font.pixelSize: fontSize
+                    font.family: fontName
+                    Layout.rightMargin: 8
+                    Layout.alignment: Qt.AlignBaseline
 
                     MouseArea {
                         anchors.fill: parent
@@ -510,6 +607,131 @@ ShellRoot {
                         }
                         onExited: {
                             closeTimer.start()
+                        }
+                    }
+                }
+            }
+
+            // ===== Ark 用量详情浮层 =====
+            PopupWindow {
+                id: arkDetailPopup
+                visible: false
+                grabFocus: false
+                anchor.window: bar
+                anchor.rect.x: {
+                    var pt = arkTextEl.mapToItem(bar.contentItem, 0, 0)
+                    var x = pt.x + arkTextEl.width - width
+                    if (x < 0) x = 0
+                    if (x + width > bar.width) x = bar.width - width
+                    return x
+                }
+                anchor.rect.y: bar.height + 4
+                width: 230
+                height: 120
+                color: "transparent"
+
+                function periodColor(pct) {
+                    if (pct >= 80) return colRed
+                    if (pct >= 50) return colYellow
+                    return colGreen
+                }
+                function periodName(lbl) {
+                    if (lbl === "5h") return "5小时"
+                    if (lbl === "W")  return "本周"
+                    if (lbl === "M")  return "本月"
+                    return lbl
+                }
+                function barWidth(pct) {
+                    var v = Math.max(0, Math.min(100, pct))
+                    return v * 1.4
+                }
+                function open() {
+                    visible = true
+                    arkCloseTimer.stop()
+                }
+
+                Timer {
+                    id: arkCloseTimer
+                    interval: 300
+                    onTriggered: arkDetailPopup.visible = false
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    onEntered: arkCloseTimer.stop()
+                    onExited: arkCloseTimer.start()
+                }
+
+                Rectangle {
+                    anchors.fill: parent
+                    color: colBg
+                    border.color: colMuted
+                    border.width: 1
+                    radius: 8
+
+                    Column {
+                        anchors.fill: parent
+                        anchors.margins: 10
+                        spacing: 6
+
+                        Text {
+                            text: "火山方舟 Coding Plan"
+                            color: colCyan
+                            font.pixelSize: fontSize - 1
+                            font.family: fontName
+                            font.bold: true
+                        }
+
+                        Repeater {
+                            model: arkDetail
+
+                            Column {
+                                width: arkDetailPopup.width - 20
+                                spacing: 2
+
+                                required property var modelData
+
+                                Row {
+                                    width: parent.width
+                                    Text {
+                                        text: arkDetailPopup.periodName(modelData.label)
+                                        color: colFg
+                                        font.pixelSize: fontSize - 2
+                                        font.family: fontName
+                                        width: 48
+                                    }
+                                    Text {
+                                        text: modelData.percent.toFixed(1) + "%"
+                                        color: arkDetailPopup.periodColor(modelData.percent)
+                                        font.pixelSize: fontSize - 2
+                                        font.family: fontName
+                                        font.bold: true
+                                        width: 56
+                                    }
+                                    Text {
+                                        text: "重置 " + modelData.reset
+                                        color: colMuted
+                                        font.pixelSize: fontSize - 3
+                                        font.family: fontName
+                                        horizontalAlignment: Text.AlignRight
+                                        width: parent.width - 48 - 56
+                                    }
+                                }
+
+                                Rectangle {
+                                    width: parent.width
+                                    height: 4
+                                    radius: 2
+                                    color: colMuted
+                                    Rectangle {
+                                        width: arkDetailPopup.barWidth(modelData.percent)
+                                        height: parent.height
+                                        radius: 2
+                                        color: arkDetailPopup.periodColor(modelData.percent)
+                                    }
+                                }
+                            }
                         }
                     }
                 }
