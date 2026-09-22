@@ -51,6 +51,9 @@ ShellRoot {
     // DeepSeek 余额/用量
     property string dsText: "DS 未配置deepseek密钥"
 
+    // MiMo TokenPlan 用量（月剩余百分比 + 使用量/总量）
+    property string mimoText: "MIMO 查询中..."
+
     // 节假日数据 (date -> "off" | "work")
     property var holidayMap: ({})
 
@@ -188,6 +191,27 @@ ShellRoot {
         }
     }
 
+    // MiMo TokenPlan 用量查询（每 60 秒刷新）
+    Process {
+        id: mimoProc
+        command: ["python3", Quickshell.shellDir + "/mimo_usage.py"]
+        stdout: SplitParser {
+            onRead: data => {
+                if (data) mimoText = data.trim()
+            }
+        }
+    }
+
+    // MiMo 登录（在 kitty 终端里交互完成手机号+验证码，结束后自动刷新用量）
+    Process {
+        id: mimoLoginProc
+        command: ["sh", "-c", "kitty -e python3 \"$HOME/scripts/mimo_token_balance.py\""]
+        onRunningChanged: {
+            if (!running)
+                mimoProc.running = true
+        }
+    }
+
     // 节假日数据查询（按年份）
     Process {
         id: holidayProc
@@ -213,6 +237,7 @@ ShellRoot {
         repeat: true
         onTriggered: {
             dsProc.running = true
+            mimoProc.running = true
         }
     }
 
@@ -223,6 +248,7 @@ ShellRoot {
         memProc.running = true
         imProc.running = true
         dsProc.running = true
+        mimoProc.running = true
         if (Pipewire.defaultAudioSink)
             audioSink = Pipewire.defaultAudioSink
     }
@@ -317,6 +343,39 @@ ShellRoot {
                         onClicked: {
                             dsProc.running = true
                             Qt.openUrlExternally("https://platform.deepseek.com/usage")
+                        }
+                    }
+                }
+
+                // MiMo TokenPlan 用量（未登录/失效时点击执行登录脚本）
+                Text {
+                    text: {
+                        if (mimoText.indexOf("未登录") >= 0 || mimoText.indexOf("失效") >= 0
+                            || mimoText.indexOf("失败") >= 0 || mimoText.indexOf("查询中") >= 0)
+                            return '<font color="' + colRed + '">' + mimoText + '</font>'
+                        var m = mimoText.match(/^MIMO\s+/)
+                        var rest = m ? mimoText.slice(m[0].length) : mimoText
+                        return '<font color="' + colActive + '">MIMO </font>'
+                             + '<font color="' + colGreen + '">' + rest + '</font>'
+                    }
+                    textFormat: Text.StyledText
+                    font.pixelSize: fontSize
+                    font.family: fontName
+                    Layout.rightMargin: 8
+                    Layout.alignment: Qt.AlignBaseline
+
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            if (mimoText.indexOf("未登录") >= 0
+                                || mimoText.indexOf("失效") >= 0) {
+                                // 没登录：打开终端执行登录脚本，完成后自动刷新
+                                mimoLoginProc.running = true
+                            } else {
+                                mimoProc.running = true
+                                Qt.openUrlExternally("https://platform.xiaomimimo.com/console/plan-manage")
+                            }
                         }
                     }
                 }
