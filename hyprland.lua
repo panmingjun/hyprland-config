@@ -72,6 +72,7 @@ hl.on("hyprland.start", function()
     hl.exec_cmd("gnome-keyring-daemon --start --components=secrets")
     hl.exec_cmd("sh -c 'GTK_IM_MODULE=fcitx utools'")
     hl.exec_cmd("systemctl --user start xdg-desktop-portal-hyprland")
+    hl.exec_cmd("systemctl --user start hyprpolkitagent")
     hl.exec_cmd("systemctl --user import-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP")
     hl.exec_cmd("dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP=hyprland")
 end)
@@ -346,7 +347,8 @@ hl.bind("print",            hl.dsp.exec_cmd("hyprshot -m window -o /tmp"))
 hl.bind("ALT + print",      hl.dsp.exec_cmd("hyprshot -m region -o /tmp"))
 -- 截取当前显示器
 hl.bind("SHIFT + print",    hl.dsp.exec_cmd("hyprshot -m output -o /tmp"))
-
+-- 锁屏
+hl.bind(mainMod .. " + L",         hl.dsp.exec_cmd("hyprlock"))
 
 -------------------------------
 ---- WINDOWS AND WORKSPACES ----
