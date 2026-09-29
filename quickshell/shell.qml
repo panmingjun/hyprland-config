@@ -205,7 +205,7 @@ ShellRoot {
     // MiMo 登录（在 kitty 终端里交互完成手机号+验证码，结束后自动刷新用量）
     Process {
         id: mimoLoginProc
-        command: ["sh", "-c", "kitty -e python3 \"$HOME/scripts/mimo_token_balance.py\""]
+        command: ["sh", "-c", "kitty -e python3 \"" + Quickshell.shellDir + "/mimo_token_balance.py\""]
         onRunningChanged: {
             if (!running)
                 mimoProc.running = true

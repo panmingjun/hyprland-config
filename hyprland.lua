@@ -349,6 +349,8 @@ hl.bind("ALT + print",      hl.dsp.exec_cmd("hyprshot -m region -o /tmp"))
 hl.bind("SHIFT + print",    hl.dsp.exec_cmd("hyprshot -m output -o /tmp"))
 -- 锁屏
 hl.bind(mainMod .. " + L",         hl.dsp.exec_cmd("hyprlock"))
+-- 睡眠
+hl.bind(mainMod .. " + SHIFT + S",         hl.dsp.exec_cmd("systemctl hibernate"))
 
 -------------------------------
 ---- WINDOWS AND WORKSPACES ----
