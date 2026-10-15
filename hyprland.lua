@@ -45,9 +45,8 @@ hl.monitor({
 
 -- Set programs that you use
 local terminal    = "kitty"
-local fileManager = "pcmanfm"
--- local menu     = "hyprlauncher"
-local menu        = "wofi --show drun -I --insensitive -p 搜索应用"
+local fileManager = "kitty --hold yazi"
+local menu     = "hyprlauncher"
 
 
 -------------------
@@ -310,8 +309,8 @@ hl.bind(mainMod .. " + down",  hl.dsp.focus({ direction = "down" }))
 -- Switch workspaces with mainMod + [0-9]
 for i = 1, 10 do
     local key = i % 10 -- 10 maps to key 0
-    hl.bind(mainMod .. " + " .. key,             hl.dsp.focus({ workspace = i }))
-    hl.bind(mainMod .. " + SHIFT + " .. key,     hl.dsp.window.move({ workspace = i }))
+    hl.bind(mainMod .. " + " .. key,             hl.dsp.focus({ workspace = i }), {dont_inhibit = true})
+    hl.bind(mainMod .. " + SHIFT + " .. key,     hl.dsp.window.move({ workspace = i }), {dont_inhibit = true})
 end
 
 -- Example special workspace (scratchpad)
@@ -353,7 +352,7 @@ hl.bind(mainMod .. " + L",         hl.dsp.exec_cmd("hyprlock"))
 hl.bind(mainMod .. " + SHIFT + S",         hl.dsp.exec_cmd("systemctl hibernate"))
 -- ALT+U 唤起 uTools：直连 SingletonSocket 通知主进程（~40ms），
 -- 替代 `utools` 二次启动（~1.3s，需完整冷启动一个 Electron 进程）
-hl.bind("ALT + U", hl.dsp.exec_cmd("python3 /home/panmingjun/.config/hypr/scripts/utools-notify.py"))
+hl.bind("ALT + U", hl.dsp.exec_cmd("python3 /home/panmingjun/.config/hypr/scripts/utools-notify.py"), {dont_inhibit = true})
 -------------------------------
 ---- WINDOWS AND WORKSPACES ----
 -------------------------------
