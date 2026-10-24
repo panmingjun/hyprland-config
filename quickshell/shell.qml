@@ -3,9 +3,11 @@
 import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Io
+import Quickshell.Wayland
 import Quickshell.Services.UPower
 import Quickshell.Services.SystemTray
 import Quickshell.Services.Pipewire  // 导入Pipewire服务模块
+import Quickshell.Services.Mpris
 
 import QtQuick
 import QtQuick.Layouts
@@ -760,6 +762,85 @@ ShellRoot {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    // ===== 桌面歌词（feeluown -> ~/.cache/feeluown-lyric/current.json） =====
+    // 独立 layer-shell 层：置顶于普通窗口、不占工作区、鼠标穿透。
+    PanelWindow {
+        id: lyricBar
+        screen: Quickshell.screens[0]
+
+        anchors { top: true; left: true; right: true }
+        margins { top: 38 }
+        implicitHeight: 70
+        exclusiveZone: 0
+        color: "transparent"
+        focusable: false
+
+        WlrLayershell.layer: WlrLayershell.Top
+        WlrLayershell.namespace: "quickshell-lyric"
+        // 空输入区域 -> 鼠标点击完全穿透到下面的窗口
+        mask: Region {}
+
+        property var lyric: ({})
+
+        // feeluown 进程是否还在（MPRIS 服务随进程消失）：
+        // 避免播放器退出后残留最后一句歌词
+        property bool playerAlive: Mpris.players.values.some(
+            p => ("" + p.identity).toLowerCase().indexOf("feeluown") >= 0)
+
+        function refreshLyric() {
+            try {
+                lyric = JSON.parse(lyricFile.text() || "{}");
+            } catch (e) {
+                // 文件写入过程中可能读到半截 JSON，保留上一帧
+            }
+        }
+
+        FileView {
+            id: lyricFile
+            path: Quickshell.env("HOME") + "/.cache/feeluown-lyric/current.json"
+            watchChanges: true
+            printErrors: false
+            onFileChanged: reload()
+            onLoaded: lyricBar.refreshLyric()
+        }
+
+        // 兜底轮询：文件在 quickshell 启动后才创建时，watchChanges 可能失效
+        Timer {
+            interval: 1000
+            running: true
+            repeat: true
+            onTriggered: lyricFile.reload()
+        }
+
+        Column {
+            anchors.centerIn: parent
+            spacing: 2
+            visible: lyricBar.playerAlive && (lyricBar.lyric.text || "") !== ""
+
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: lyricBar.lyric.text || ""
+                color: colFg
+                font.family: "Noto Sans CJK SC"
+                font.pixelSize: 26
+                font.bold: true
+                style: Text.Outline
+                styleColor: "#000000cc"
+            }
+
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                visible: (lyricBar.lyric.trans || "") !== ""
+                text: lyricBar.lyric.trans || ""
+                color: colActive
+                font.family: "Noto Sans CJK SC"
+                font.pixelSize: 15
+                style: Text.Outline
+                styleColor: "#000000cc"
             }
         }
     }
