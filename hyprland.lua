@@ -352,6 +352,7 @@ hl.bind(mainMod .. " + L",         hl.dsp.exec_cmd("hyprlock"))
 hl.bind(mainMod .. " + SHIFT + S",         hl.dsp.exec_cmd("systemctl hibernate"))
 -- ALT+U 唤起 uTools：直连 SingletonSocket 通知主进程（~40ms），
 -- 替代 `utools` 二次启动（~1.3s，需完整冷启动一个 Electron 进程）
+hl.bind(mainMod .. " + U", hl.dsp.exec_cmd("python3 /home/panmingjun/.config/hypr/scripts/utools-notify.py"), {dont_inhibit = true})
 hl.bind("ALT + U", hl.dsp.exec_cmd("python3 /home/panmingjun/.config/hypr/scripts/utools-notify.py"), {dont_inhibit = true})
 -------------------------------
 ---- WINDOWS AND WORKSPACES ----
